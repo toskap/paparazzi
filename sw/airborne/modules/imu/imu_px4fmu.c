@@ -29,6 +29,7 @@
 #include "modules/core/abi.h"
 #include "mcu_periph/spi.h"
 #include "peripherals/hmc58xx_regs.h"
+#include "generated/modules.h"
 
 
 /* MPU60x0 gyro/accel internal lowpass frequency */
@@ -70,8 +71,8 @@ void imu_px4fmu_init(void)
   imu_px4fmu.mpu.config.accel_range = PX4FMU_ACCEL_RANGE;
 
   // Set the default scaling
-  imu_set_defaults_gyro(IMU_BOARD_ID, NULL, NULL, MPU60X0_GYRO_SENS_FRAC[PX4FMU_GYRO_RANGE]);
-  imu_set_defaults_accel(IMU_BOARD_ID, NULL, NULL, MPU60X0_ACCEL_SENS_FRAC[PX4FMU_ACCEL_RANGE]);
+  imu_set_defaults_gyro(IMU_BOARD_ID, NULL, NULL, &MPU60X0_GYRO_SENS_F[PX4FMU_GYRO_RANGE]);
+  imu_set_defaults_accel(IMU_BOARD_ID, NULL, NULL, &MPU60X0_ACCEL_SENS_F[PX4FMU_ACCEL_RANGE]);
 
   /* initialize mag on i2c2 and set default options */
   hmc58xx_init(&imu_px4fmu.hmc, &i2c2, HMC58XX_ADDR);
@@ -103,8 +104,8 @@ void imu_px4fmu_event(void)
       -imu_px4fmu.mpu.data_accel.vect.z
     };
     imu_px4fmu.mpu.data_available = false;
-    AbiSendMsgIMU_GYRO_RAW(IMU_BOARD_ID, now_ts, &gyro, 1, imu_px4fmu.mpu.temp);
-    AbiSendMsgIMU_ACCEL_RAW(IMU_BOARD_ID, now_ts, &accel, 1, imu_px4fmu.mpu.temp);
+    AbiSendMsgIMU_GYRO_RAW(IMU_BOARD_ID, now_ts, &gyro, 1, IMU_PX4FMU_PERIODIC_FREQ, imu_px4fmu.mpu.temp);
+    AbiSendMsgIMU_ACCEL_RAW(IMU_BOARD_ID, now_ts, &accel, 1, IMU_PX4FMU_PERIODIC_FREQ, imu_px4fmu.mpu.temp);
   }
 
   /* HMC58XX event task */

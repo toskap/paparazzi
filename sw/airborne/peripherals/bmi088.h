@@ -29,6 +29,7 @@
 
 #include "std.h"
 #include "math/pprz_algebra_int.h"
+#include "math/pprz_algebra_float.h"
 
 /* Include address and register definition */
 #include "peripherals/bmi088_regs.h"
@@ -68,7 +69,7 @@
 // Get default sensitivity from a table
 extern const float BMI088_GYRO_SENS[5];
 // Get default sensitivity numerator and denominator from a table
-extern const struct Int32Rates BMI088_GYRO_SENS_FRAC[5][2];
+extern const struct FloatVect3 BMI088_GYRO_SENS_F[5];
 
 /** default accel sensitivy from the datasheet
  * sens = 9.81 [m/s^2] / [LSB/g] * 2^INT32_ACCEL_FRAC
@@ -92,7 +93,7 @@ extern const struct Int32Rates BMI088_GYRO_SENS_FRAC[5][2];
 // Get default sensitivity from a table
 extern const float BMI088_ACCEL_SENS[4];
 // Get default sensitivity numerator and denominator from a table
-extern const struct Int32Vect3 BMI088_ACCEL_SENS_FRAC[4][2];
+extern const struct FloatVect3 BMI088_ACCEL_SENS_F[4];
 
 enum Bmi088ConfStatus {
   BMI088_CONF_UNINIT,
@@ -119,6 +120,9 @@ struct Bmi088Config {
   enum Bmi088AccelBW accel_bw;          ///< bandwidth
   enum Bmi088ConfStatus init_status;    ///< init status
   bool initialized;                     ///< config done flag
+
+  float gyro_samplerate;                ///< samplerate in Hz from gyro_odr
+  float accel_samplerate;               ///< samplerate in Hz from accel_odr
 };
 
 extern void bmi088_set_default_config(struct Bmi088Config *c);

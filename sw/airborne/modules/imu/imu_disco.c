@@ -28,6 +28,7 @@
 #include "modules/imu/imu.h"
 #include "modules/core/abi.h"
 #include "mcu_periph/i2c.h"
+#include "generated/modules.h"
 
 
 /* I2C is hardwired on Disco autopilot */
@@ -80,8 +81,8 @@ void imu_disco_init(void)
   imu_disco.mpu.config.accel_range = DISCO_ACCEL_RANGE;
 
   // Set the default scaling
-  imu_set_defaults_gyro(IMU_BOARD_ID, NULL, NULL, MPU60X0_GYRO_SENS_FRAC[DISCO_GYRO_RANGE]);
-  imu_set_defaults_accel(IMU_BOARD_ID, NULL, NULL, MPU60X0_ACCEL_SENS_FRAC[DISCO_ACCEL_RANGE]);
+  imu_set_defaults_gyro(IMU_BOARD_ID, NULL, NULL, &MPU60X0_GYRO_SENS_F[DISCO_GYRO_RANGE]);
+  imu_set_defaults_accel(IMU_BOARD_ID, NULL, NULL, &MPU60X0_ACCEL_SENS_F[DISCO_ACCEL_RANGE]);
 
   /* AKM8963 */
   ak8963_init(&imu_disco.ak, &(DISCO_MAG_I2C_DEV), AK8963_ADDR);
@@ -131,8 +132,8 @@ void imu_disco_event(void)
         imu_disco.mpu.data_accel.vect.z);
 
     imu_disco.mpu.data_available = false;
-    AbiSendMsgIMU_GYRO_RAW(IMU_BOARD_ID, now_ts, &gyro, 1, imu_disco.mpu.temp);
-    AbiSendMsgIMU_ACCEL_RAW(IMU_BOARD_ID, now_ts, &accel, 1, imu_disco.mpu.temp);
+    AbiSendMsgIMU_GYRO_RAW(IMU_BOARD_ID, now_ts, &gyro, 1, IMU_DISCO_PERIODIC_FREQ, imu_disco.mpu.temp);
+    AbiSendMsgIMU_ACCEL_RAW(IMU_BOARD_ID, now_ts, &accel, 1, IMU_DISCO_PERIODIC_FREQ, imu_disco.mpu.temp);
   }
 
   /* AKM8963 event task */

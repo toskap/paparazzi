@@ -29,6 +29,7 @@
 #include "modules/core/abi.h"
 #include "mcu_periph/spi.h"
 #include "peripherals/hmc58xx_regs.h"
+#include "generated/modules.h"
 
 
 /* SPI/I2C defaults set in subsystem makefile, can be configured from airframe file */
@@ -130,8 +131,8 @@ void imu_mpu_hmc_init(void)
   imu_mpu_hmc.mpu.config.accel_range = IMU_MPU_ACCEL_RANGE;
 
   // Set the default scaling
-  imu_set_defaults_gyro(IMU_MPU6000_HMC_ID, NULL, NULL, MPU60X0_GYRO_SENS_FRAC[IMU_MPU_GYRO_RANGE]);
-  imu_set_defaults_accel(IMU_MPU6000_HMC_ID, NULL, NULL, MPU60X0_ACCEL_SENS_FRAC[IMU_MPU_ACCEL_RANGE]);
+  imu_set_defaults_gyro(IMU_MPU6000_HMC_ID, NULL, NULL, &MPU60X0_GYRO_SENS_F[IMU_MPU_GYRO_RANGE]);
+  imu_set_defaults_accel(IMU_MPU6000_HMC_ID, NULL, NULL, &MPU60X0_ACCEL_SENS_F[IMU_MPU_ACCEL_RANGE]);
 
   /* initialize mag and set default options */
   hmc58xx_init(&imu_mpu_hmc.hmc, &IMU_HMC_I2C_DEV, HMC58XX_ADDR);
@@ -167,8 +168,8 @@ void imu_mpu_hmc_event(void)
     };
 
     imu_mpu_hmc.mpu.data_available = false;
-    AbiSendMsgIMU_GYRO_RAW(IMU_MPU6000_HMC_ID, now_ts, &rates, 1, imu_mpu_hmc.mpu.temp);
-    AbiSendMsgIMU_ACCEL_RAW(IMU_MPU6000_HMC_ID, now_ts, &accel, 1, imu_mpu_hmc.mpu.temp);
+    AbiSendMsgIMU_GYRO_RAW(IMU_MPU6000_HMC_ID, now_ts, &rates, 1, IMU_MPU_HMC_PERIODIC_FREQ, imu_mpu_hmc.mpu.temp);
+    AbiSendMsgIMU_ACCEL_RAW(IMU_MPU6000_HMC_ID, now_ts, &accel, 1, IMU_MPU_HMC_PERIODIC_FREQ, imu_mpu_hmc.mpu.temp);
   }
 
   /* HMC58XX event task */

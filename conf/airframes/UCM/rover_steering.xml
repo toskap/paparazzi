@@ -44,11 +44,13 @@
       <configure name="USE_MAGNETOMETER" value="0"/>
     </module-->
 
-    <module name="nav"  type="rover_base">
-      <define name="ROVER_BASE_SEND_TRAJECTORY" value="FALSE"/>
-    </module>
-    <module name="gvf"  type="module">
+    <module name="nav"  type="rover_base"/>
+    <module name="gvf"  type="classic">
       <define name="GVF_OCAML_GCS" value="FALSE"/>
+    </module>
+    
+    <module name="gvf_parametric">
+      <define name="GVF_PARAMETRIC_2D_BEZIER_N_SEG" value="4"/>
     </module>
 
     <module name="guidance" type="rover_steering">

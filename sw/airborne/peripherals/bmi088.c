@@ -36,17 +36,12 @@ const float BMI088_GYRO_SENS[5] = {
   BMI088_GYRO_SENS_125,
 };
 
-const struct Int32Rates BMI088_GYRO_SENS_FRAC[5][2] = {
-  { {BMI088_GYRO_SENS_2000_NUM, BMI088_GYRO_SENS_2000_NUM, BMI088_GYRO_SENS_2000_NUM},
-    {BMI088_GYRO_SENS_2000_DEN, BMI088_GYRO_SENS_2000_DEN, BMI088_GYRO_SENS_2000_DEN} },
-  { {BMI088_GYRO_SENS_1000_NUM, BMI088_GYRO_SENS_1000_NUM, BMI088_GYRO_SENS_1000_NUM},
-    {BMI088_GYRO_SENS_1000_DEN, BMI088_GYRO_SENS_1000_DEN, BMI088_GYRO_SENS_1000_DEN} },
-  { {BMI088_GYRO_SENS_500_NUM, BMI088_GYRO_SENS_500_NUM, BMI088_GYRO_SENS_500_NUM},
-    {BMI088_GYRO_SENS_500_DEN, BMI088_GYRO_SENS_500_DEN, BMI088_GYRO_SENS_500_DEN} },
-  { {BMI088_GYRO_SENS_250_NUM, BMI088_GYRO_SENS_250_NUM, BMI088_GYRO_SENS_250_NUM},
-    {BMI088_GYRO_SENS_250_DEN, BMI088_GYRO_SENS_250_DEN, BMI088_GYRO_SENS_250_DEN} },
-  { {BMI088_GYRO_SENS_125_NUM, BMI088_GYRO_SENS_125_NUM, BMI088_GYRO_SENS_125_NUM},
-    {BMI088_GYRO_SENS_125_DEN, BMI088_GYRO_SENS_125_DEN, BMI088_GYRO_SENS_125_DEN} }
+const struct FloatVect3 BMI088_GYRO_SENS_F[5] = {
+  {BMI088_GYRO_SENS_2000, BMI088_GYRO_SENS_2000, BMI088_GYRO_SENS_2000},
+  {BMI088_GYRO_SENS_1000, BMI088_GYRO_SENS_1000, BMI088_GYRO_SENS_1000},
+  {BMI088_GYRO_SENS_500, BMI088_GYRO_SENS_500, BMI088_GYRO_SENS_500},
+  {BMI088_GYRO_SENS_250, BMI088_GYRO_SENS_250, BMI088_GYRO_SENS_250},
+  {BMI088_GYRO_SENS_125, BMI088_GYRO_SENS_125, BMI088_GYRO_SENS_125}
 };
 
 const float BMI088_ACCEL_SENS[4] = {
@@ -56,15 +51,11 @@ const float BMI088_ACCEL_SENS[4] = {
   BMI088_ACCEL_SENS_24G
 };
 
-const struct Int32Vect3 BMI088_ACCEL_SENS_FRAC[4][2] = {
-  { {BMI088_ACCEL_SENS_3G_NUM, BMI088_ACCEL_SENS_3G_NUM, BMI088_ACCEL_SENS_3G_NUM},
-    {BMI088_ACCEL_SENS_3G_DEN, BMI088_ACCEL_SENS_3G_DEN, BMI088_ACCEL_SENS_3G_DEN} },
-  { {BMI088_ACCEL_SENS_6G_NUM, BMI088_ACCEL_SENS_6G_NUM, BMI088_ACCEL_SENS_6G_NUM},
-    {BMI088_ACCEL_SENS_6G_DEN, BMI088_ACCEL_SENS_6G_DEN, BMI088_ACCEL_SENS_6G_DEN} },
-  { {BMI088_ACCEL_SENS_12G_NUM, BMI088_ACCEL_SENS_12G_NUM, BMI088_ACCEL_SENS_12G_NUM},
-    {BMI088_ACCEL_SENS_12G_DEN, BMI088_ACCEL_SENS_12G_DEN, BMI088_ACCEL_SENS_12G_DEN} },
-  { {BMI088_ACCEL_SENS_24G_NUM, BMI088_ACCEL_SENS_24G_NUM, BMI088_ACCEL_SENS_24G_NUM},
-    {BMI088_ACCEL_SENS_24G_DEN, BMI088_ACCEL_SENS_24G_DEN, BMI088_ACCEL_SENS_24G_DEN} }
+const struct FloatVect3 BMI088_ACCEL_SENS_F[4] = {
+  {BMI088_ACCEL_SENS_3G, BMI088_ACCEL_SENS_3G, BMI088_ACCEL_SENS_3G},
+  {BMI088_ACCEL_SENS_6G, BMI088_ACCEL_SENS_6G, BMI088_ACCEL_SENS_6G},
+  {BMI088_ACCEL_SENS_12G, BMI088_ACCEL_SENS_12G, BMI088_ACCEL_SENS_12G},
+  {BMI088_ACCEL_SENS_24G, BMI088_ACCEL_SENS_24G, BMI088_ACCEL_SENS_24G}
 };
 
 void bmi088_set_default_config(struct Bmi088Config *c)
@@ -115,6 +106,54 @@ void bmi088_send_config(Bmi088ConfigSet bmi_set, void *bmi, struct Bmi088Config 
       config->init_status++;
       break;
     case BMI088_CONF_DONE:
+      /* Set the samplerates from the ODR */
+      switch(config->gyro_odr) {
+        case BMI088_GYRO_ODR_2000_BW_532:
+        case BMI088_GYRO_ODR_2000_BW_230:
+          config->gyro_samplerate = 2000;
+          break;
+        case BMI088_GYRO_ODR_1000_BW_116:
+          config->gyro_samplerate = 1000;
+          break;
+        case BMI088_GYRO_ODR_400_BW_47:
+          config->gyro_samplerate = 400;
+          break;
+        case BMI088_GYRO_ODR_200_BW_23:
+        case BMI088_GYRO_ODR_200_BW_64:
+          config->gyro_samplerate = 200;
+          break;
+        case BMI088_GYRO_ODR_100_BW_12:
+        case BMI088_GYRO_ODR_100_BW_32:
+          config->gyro_samplerate = 100;
+          break;
+      }
+      switch(config->accel_odr) {
+        case BMI088_ACCEL_ODR_1600:
+          config->accel_samplerate = 1600;
+          break;
+        case BMI088_ACCEL_ODR_800:
+          config->accel_samplerate = 800;
+          break;
+        case BMI088_ACCEL_ODR_400:
+          config->accel_samplerate = 400;
+          break;
+        case BMI088_ACCEL_ODR_200:
+          config->accel_samplerate = 200;
+          break;
+        case BMI088_ACCEL_ODR_100:
+          config->accel_samplerate = 100;
+          break;
+        case BMI088_ACCEL_ODR_50:
+          config->accel_samplerate = 50;
+          break;
+        case BMI088_ACCEL_ODR_25:
+          config->accel_samplerate = 25;
+          break;
+        case BMI088_ACCEL_ODR_12:
+          config->accel_samplerate = 12;
+          break;
+      }
+
       config->initialized = true;
       break;
     default:

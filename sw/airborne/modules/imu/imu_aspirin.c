@@ -30,6 +30,7 @@
 #include "modules/core/abi.h"
 #include "mcu_periph/i2c.h"
 #include "mcu_periph/spi.h"
+#include "generated/modules.h"
 
 
 /* defaults suitable for Lisa */
@@ -89,24 +90,15 @@ void imu_aspirin_init(void)
 
   // Default scaling values
 #ifdef IMU_ASPIRIN_VERSION_1_5
-  const struct Int32Rates gyro_scale[2] = {
-    {4359, 4359, 4359},
-    {1000, 1000, 1000}
-  };
+  const struct FloatVect3 gyro_scale_f = { 4.359f, 4.359f, 4.359f };
 #else
-  const struct Int32Rates gyro_scale[2] = {
-    {4973, 4973, 4973},
-    {1000, 1000, 1000}
-  };
+  const struct FloatVect3 gyro_scale_f = { 4.973f, 4.973f, 4.973f };
 #endif
-  const struct Int32Vect3 accel_scale[2] = {
-    {3791, 3791, 3791},
-    {100,  100,  100}
-  };
+  const struct FloatVect3 accel_scale_f = { 37.91f, 37.91f, 37.91f };
  
   // Set the default scaling
-  imu_set_defaults_gyro(IMU_ASPIRIN_ID, NULL, NULL, gyro_scale);
-  imu_set_defaults_accel(IMU_ASPIRIN_ID, NULL, NULL, accel_scale);
+  imu_set_defaults_gyro(IMU_ASPIRIN_ID, NULL, NULL, &gyro_scale_f);
+  imu_set_defaults_accel(IMU_ASPIRIN_ID, NULL, NULL, &accel_scale_f);
 
   /* initialize mag and set default options */
   hmc58xx_init(&imu_aspirin.mag_hmc, &(ASPIRIN_I2C_DEV), HMC58XX_ADDR);
@@ -141,14 +133,14 @@ void imu_aspirin_event(void)
   if (imu_aspirin.acc_adxl.data_available) {
     struct Int32Vect3 accel;
     VECT3_COPY(accel, imu_aspirin.acc_adxl.data.vect);
-    AbiSendMsgIMU_ACCEL_RAW(IMU_ASPIRIN_ID, now_ts, &accel, 1, NAN);
+    AbiSendMsgIMU_ACCEL_RAW(IMU_ASPIRIN_ID, now_ts, &accel, 1, IMU_ASPIRIN_PERIODIC_FREQ, NAN);
     imu_aspirin.acc_adxl.data_available = false;
   }
 
   /* If the itg3200 I2C transaction has succeeded: convert the data */
   itg3200_event(&imu_aspirin.gyro_itg);
   if (imu_aspirin.gyro_itg.data_available) {
-    AbiSendMsgIMU_GYRO_RAW(IMU_ASPIRIN_ID, now_ts, &imu_aspirin.gyro_itg.data.rates, 1, NAN);
+    AbiSendMsgIMU_GYRO_RAW(IMU_ASPIRIN_ID, now_ts, &imu_aspirin.gyro_itg.data.rates, 1, IMU_ASPIRIN_PERIODIC_FREQ, NAN);
     imu_aspirin.gyro_itg.data_available = false;
   }
 

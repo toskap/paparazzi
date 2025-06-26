@@ -76,8 +76,8 @@ void imu_parrot_minidrone_init(void)
   imu_parrot_minidrone.mpu.config.accel_range = PARROT_MINIDRONE_ACCEL_RANGE;
 
     // Set the default scaling
-  imu_set_defaults_gyro(IMU_BOARD_ID, NULL, NULL, MPU60X0_GYRO_SENS_FRAC[PARROT_MINIDRONE_GYRO_RANGE]);
-  imu_set_defaults_accel(IMU_BOARD_ID, NULL, NULL, MPU60X0_ACCEL_SENS_FRAC[PARROT_MINIDRONE_ACCEL_RANGE]);
+  imu_set_defaults_gyro(IMU_BOARD_ID, NULL, NULL, &MPU60X0_GYRO_SENS_F[PARROT_MINIDRONE_GYRO_RANGE]);
+  imu_set_defaults_accel(IMU_BOARD_ID, NULL, NULL, &MPU60X0_ACCEL_SENS_F[PARROT_MINIDRONE_ACCEL_RANGE]);
 
 }
 
@@ -128,7 +128,7 @@ void imu_parrot_minidrone_event(void)
 #endif
 
     imu_parrot_minidrone.mpu.data_available = false;
-    AbiSendMsgIMU_GYRO_RAW(IMU_BOARD_ID, now_ts, &gyro, 1, imu_parrot_minidrone.mpu.temp);
-    AbiSendMsgIMU_ACCEL_RAW(IMU_BOARD_ID, now_ts, &accel, 1, imu_parrot_minidrone.mpu.temp);
+    AbiSendMsgIMU_GYRO_RAW(IMU_BOARD_ID, now_ts, &gyro, 1, IMU_SWING_PERIODIC_FREQ, imu_parrot_minidrone.mpu.temp);
+    AbiSendMsgIMU_ACCEL_RAW(IMU_BOARD_ID, now_ts, &accel, 1, IMU_SWING_PERIODIC_FREQ, imu_parrot_minidrone.mpu.temp);
   }
 }

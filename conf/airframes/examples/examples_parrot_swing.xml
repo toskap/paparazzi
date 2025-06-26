@@ -3,6 +3,7 @@
 <airframe name="Swing">
 
   <firmware name="rotorcraft">
+  <define name="IMU_SWING_PERIODIC_FREQ" value="512"/>
     <configure name="PREFIX" value="/opt/arm-2012.03/bin/arm-none-linux-gnueabi-"/>
     <configure name="USE_BARO_BOARD" value="FALSE"/>
     <target name="ap" board="parrot_minidrone"/>

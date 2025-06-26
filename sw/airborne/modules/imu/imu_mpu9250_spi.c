@@ -31,6 +31,7 @@
 #include "mcu_periph/sys_time.h"
 #include "mcu_periph/spi.h"
 #include "peripherals/ak8963_regs.h"
+#include "generated/modules.h"
 
 /* SPI defaults set in subsystem makefile, can be configured from airframe file */
 PRINT_CONFIG_VAR(IMU_MPU9250_SPI_SLAVE_IDX)
@@ -62,6 +63,7 @@ PRINT_CONFIG_MSG("Gyro/Accel output rate is 2kHz at 8kHz internal sampling")
 #define IMU_MPU9250_GYRO_LOWPASS_FILTER MPU9250_DLPF_GYRO_41HZ
 #define IMU_MPU9250_ACCEL_LOWPASS_FILTER MPU9250_DLPF_ACCEL_41HZ
 PRINT_CONFIG_MSG("Gyro/Accel output rate is 100Hz at 1kHz internal sampling")
+#warning "Non-default PERIODIC_FREQUENCY: please define IMU_MPU9250_GYRO_LOWPASS_FILTER, IMU_MPU9250_ACCEL_LOWPASS_FILTER and IMU_MPU9250_SMPLRT_DIV."
 #endif
 #endif
 PRINT_CONFIG_VAR(IMU_MPU9250_SMPLRT_DIV)
@@ -124,8 +126,8 @@ void imu_mpu9250_init(void)
   imu_mpu9250.mpu.config.accel_range = IMU_MPU9250_ACCEL_RANGE;
 
   // Set the default scaling
-  imu_set_defaults_gyro(IMU_MPU9250_ID, NULL, NULL, MPU9250_GYRO_SENS_FRAC[IMU_MPU9250_GYRO_RANGE]);
-  imu_set_defaults_accel(IMU_MPU9250_ID, NULL, NULL, MPU9250_ACCEL_SENS_FRAC[IMU_MPU9250_ACCEL_RANGE]);
+  imu_set_defaults_gyro(IMU_MPU9250_ID, NULL, NULL, &MPU9250_GYRO_SENS_F[IMU_MPU9250_GYRO_RANGE]);
+  imu_set_defaults_accel(IMU_MPU9250_ID, NULL, NULL, &MPU9250_ACCEL_SENS_F[IMU_MPU9250_ACCEL_RANGE]);
 
   /* "internal" ak8963 magnetometer as I2C slave */
 #if IMU_MPU9250_READ_MAG
@@ -200,8 +202,8 @@ void imu_mpu9250_event(void)
 #endif
 
     imu_mpu9250.mpu.data_available = false;
-    AbiSendMsgIMU_GYRO_RAW(IMU_MPU9250_ID, now_ts, &rates, 1, NAN);
-    AbiSendMsgIMU_ACCEL_RAW(IMU_MPU9250_ID, now_ts, &accel, 1, NAN);
+    AbiSendMsgIMU_GYRO_RAW(IMU_MPU9250_ID, now_ts, &rates, 1, IMU_MPU9250_PERIODIC_FREQ, NAN);
+    AbiSendMsgIMU_ACCEL_RAW(IMU_MPU9250_ID, now_ts, &accel, 1, IMU_MPU9250_PERIODIC_FREQ, NAN);
   }
 
 }

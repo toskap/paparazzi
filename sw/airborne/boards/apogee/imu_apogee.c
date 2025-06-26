@@ -32,6 +32,7 @@
 #include "mcu_periph/i2c.h"
 #include "led.h"
 #include "modules/core/abi.h"
+#include "generated/modules.h"
 
 // Downlink
 #include "mcu_periph/uart.h"
@@ -106,8 +107,8 @@ void imu_apogee_init(void)
   imu_apogee.mpu.config.slaves[0].configure = &configure_baro_slave;
   imu_apogee.mpu.config.i2c_bypass = true;
   // set the default values
-  imu_set_defaults_gyro(IMU_BOARD_ID, NULL, NULL, MPU60X0_GYRO_SENS_FRAC[APOGEE_GYRO_RANGE]);
-  imu_set_defaults_accel(IMU_BOARD_ID, NULL, NULL, MPU60X0_ACCEL_SENS_FRAC[APOGEE_ACCEL_RANGE]);
+  imu_set_defaults_gyro(IMU_BOARD_ID, NULL, NULL, &MPU60X0_GYRO_SENS_F[APOGEE_GYRO_RANGE]);
+  imu_set_defaults_accel(IMU_BOARD_ID, NULL, NULL, &MPU60X0_ACCEL_SENS_F[APOGEE_ACCEL_RANGE]);
   
 #if APOGEE_USE_MPU9150
   // if using MPU9150, internal mag needs to be configured
@@ -140,13 +141,13 @@ void imu_apogee_event(void)
         (int32_t)(-imu_apogee.mpu.data_rates.value[IMU_APOGEE_CHAN_Y]),
         (int32_t)(-imu_apogee.mpu.data_rates.value[IMU_APOGEE_CHAN_Z])
     };
-    AbiSendMsgIMU_GYRO_RAW(IMU_BOARD_ID, now_ts, &rates, 1, imu_apogee.mpu.temp);
+    AbiSendMsgIMU_GYRO_RAW(IMU_BOARD_ID, now_ts, &rates, 1, IMU_APOGEE_PERIODIC_FREQ, imu_apogee.mpu.temp);
     struct Int32Vect3 accel = {
         (int32_t)( imu_apogee.mpu.data_accel.value[IMU_APOGEE_CHAN_X]),
         (int32_t)(-imu_apogee.mpu.data_accel.value[IMU_APOGEE_CHAN_Y]),
         (int32_t)(-imu_apogee.mpu.data_accel.value[IMU_APOGEE_CHAN_Z])
     };
-    AbiSendMsgIMU_ACCEL_RAW(IMU_BOARD_ID, now_ts, &accel, 1, imu_apogee.mpu.temp);
+    AbiSendMsgIMU_ACCEL_RAW(IMU_BOARD_ID, now_ts, &accel, 1, IMU_APOGEE_PERIODIC_FREQ, imu_apogee.mpu.temp);
     imu_apogee.mpu.data_available = false;
   }
 
