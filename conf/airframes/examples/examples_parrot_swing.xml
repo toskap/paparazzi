@@ -23,7 +23,17 @@
     <module name="stabilization" type="int_quat"/>
     <module name="ahrs"          type="int_cmpl_quat"/>
     <module name="ins"/>
+        <!-- <module name="ins" type="ext_pose">
+            <define name="INS_EXT_POSE_IMU_ID"      value="IMU_CUBE1_ID"/>
+            <define name="IMU_GYRO_ABI_SEND_ID"     value= "IMU_CUBE1_ID"/>
+            <define name="IMU_ACCEL_ABI_SEND_ID"    value= "IMU_CUBE1_ID"/>
+        </module> -->
     <module name="air_data"/>
+    <module name="logger_file">
+      <define name="LOGGER_FILE_PATH" value="/data/ftp/internal_000/log"/>
+    </module>
+    <!-- <module name="pprzlog"> -->
+    <!-- <module name="gps" type="datalink"/> -->
   </firmware>
 
   <commands>
@@ -84,7 +94,7 @@
     <define name="MAG_Z_CURRENT_COEF" value="0.0"/>
 
     <define name="BODY_TO_IMU_PHI" value="0." unit="deg"/>
-    <define name="BODY_TO_IMU_THETA" value="0." unit="deg"/>
+    <define name="BODY_TO_IMU_THETA" value="90." unit="deg"/>
     <define name="BODY_TO_IMU_PSI" value="0." unit="deg"/>
   </section>
 

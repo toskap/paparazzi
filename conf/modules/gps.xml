@@ -1,6 +1,7 @@
 <!DOCTYPE module SYSTEM "module.dtd">
 
 <module name="gps" dir="gps" task="sensors">
+<!-- <module name="gps" type="datalink"/> -->
   <doc>
     <description>
       Generic GPS functions.
