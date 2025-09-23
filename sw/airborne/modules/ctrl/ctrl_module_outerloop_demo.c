@@ -38,7 +38,6 @@
 
 #include "modules/datalink/downlink.h"
 
-#include "modules/datalink/downlink.h"
 #include "mcu_periph/sys_time.h"
 #include <math.h>
 
@@ -120,7 +119,7 @@ float* guidance_function(float d_accel_ref[3]);
 
 void guidance_module_run(bool in_flight)
 {
-  // stabilization_attitude_read_rc_setpoint_eulers(&ctrl.rc_sp, autopilot_in_flight(), false, false, &radio_control);
+  stabilization_attitude_read_rc_setpoint_eulers(&ctrl.rc_sp, autopilot_in_flight(), false, false, &radio_control);
 
   // DESIRED TRAJECTORY
   static int counter = 0;
@@ -188,38 +187,6 @@ void guidance_module_run(bool in_flight)
   accel_a[1] = accel_actual->y;
   accel_a[2] = accel_actual->z;
 
-  
-  // float accel_a[3] = {0.0, 0.0, 0.0}; // Current accelerations in the NED frame
-
-  // // IMU has accelerations in the body frame. These must be converted to the NED frame 
-  // struct imu_accel_t *imu_acc = imu_get_accel(ABI_BROADCAST, true);
-
-  // float accel_body[3] = {0.0, 0.0, 0.0};
-  // nps_sensors_run_step(counter/500);
-
-  // if(imu_acc != NULL) {
-  //   accel_body[0] = imu_acc->scaled.x;
-  //   accel_body[1] = imu_acc->scaled.y;
-  //   accel_body[2] = imu_acc->scaled.z;
-  // }
-
-  // struct FloatRMat *rot = stateGetNedToBodyRMat_f(); 
-
-  // // Transpose NED to Body rotation matrix in order to get Body to NED rotation matrix
-  // float body_to_ned[3][3];
-  // for (int i = 0; i < 3; i++)
-  //     for (int j = 0; j < 3; j++)
-  //         body_to_ned[i][j] = rot->m[j*3 + i]; 
-
-  // // Get accleration in the NED frame
-  // for (int i = 0; i < 3; i++) {
-  //     accel_a[i] = 0;
-  //     for (int j = 0; j < 3; j++) {
-  //         accel_a[i] += body_to_ned[i][j] * accel_body[j];
-  //     }
-  // }
-  // RunOnceEvery(100,printf("%f,%f,%f\n", accel_body[0],accel_body[1],accel_body[2]));
-
   // d_accel_ref
   static float d_accel_ref[3];
   d_accel_ref[0] = accel_ref[0] - accel_a[0];
@@ -235,17 +202,11 @@ void guidance_module_run(bool in_flight)
   ctrl.cmd.q = rates_guidance[1];
   ctrl.cmd.r = 0.0;
 
-  // ctrl.cmd.p = 0.0;
-  // ctrl.cmd.q = 3 * sinf(counter/420.0);
-  // ctrl.cmd.r = 0.0;
-
   roll_rate_calc = ctrl.cmd.p;
   pitch_rate_calc = ctrl.cmd.q;
 
   struct StabilizationSetpoint sp = stab_sp_from_rates_f(&(ctrl.cmd));
   struct ThrustSetpoint th = th_sp_from_incr_f(rates_guidance[2], THRUST_AXIS_Z);
-
-  // RunOnceEvery(100,printf("%f\n", array[0], array[1], array[2]));
   
   // execute attitude stabilization:
   stabilization_indi_rate_run(in_flight, &sp, &th, stabilization.cmd);
@@ -267,41 +228,22 @@ float* guidance_function(float d_accel_ref[3])
 
   // PPRZ ALGEBRA MATRICES
   // Calculate d_accel_ref_b via "matrix" calculation: rot * d_accel_ref_b 
-  // float d_accel_ref_b[3];
 
   struct FloatVect3 d_accel_ref_b;
   struct FloatVect3 d_accel_ref_v = {d_accel_ref[0], d_accel_ref[1], d_accel_ref[2]};
 
   float_rmat_vmult(&d_accel_ref_b, rot, &d_accel_ref_v);
 
-  // for (int i = 0; i < 3; i++) {
-  //   d_accel_ref_b[i] = 0;
-  //   for (int j = 0; j < 3; j++) {
-  //     d_accel_ref_b[i] += rot->m[i * 3 + j] * d_accel_ref[j];  
-  //   }
-  // }
-
-
-  // Inverse of the control effectiveness matrix. The inverse is directly computed here.
-  float B_inverse[3][3] = {{0, 1/T, 0}, {1/T, 0, 0}, {0, 0, 1}};
 
   // Calculate dcmd via "matrix" calculation: dcmd = B_inverse * d_accel_ref_b * mass;
+  // Inverse of the control effectiveness matrix = {{0, 1/T, 0}, {1/T, 0, 0}, {0, 0, 1}};
   // float dcmd[3]; //MYB PUT LIMIT (45DEG)
 
   dcmd[0] = 1/T * d_accel_ref_b.y * mass;
   dcmd[1] = 1/T * d_accel_ref_b.x * mass;
   dcmd[2] = 1 * d_accel_ref_b.z * mass;
 
-  // for (int i = 0; i < 3; i++) {
-  //   dcmd[i] = 0;
-  //   for (int j = 0; j < 3; j++) {
-  //     dcmd[i] += B_inverse[i][j] * d_accel_ref_b[j];
-  //   }
-  //   dcmd[i] *= mass;
-  // }
-
   // Quaternion
-  // struct FloatQuat q; //quat output
   struct FloatEulers e;
   e.psi = 0.0;        
   e.theta = dcmd[1]; 
@@ -318,6 +260,4 @@ float* guidance_function(float d_accel_ref[3])
   return array;
 }
 
-
-// DOWNLINK_SEND_PLOP(DefaultChannel, DefaultDevice,  &roll_v_ref, &pitch_v_ref, &yaw_v_ref, &T_cmd, &T_cmd, &T_cmd);
 // RunOnceEvery(100,printf("%f, %f, %f\n", array[0], array[1], array[2]));
