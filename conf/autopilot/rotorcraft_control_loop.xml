@@ -65,14 +65,14 @@
       <on_enter>
         <call fun="guidance_module_enter()"/>
       </on_enter>
-      <control freq="NAVIGATION_FREQUENCY">
+      <!-- <control freq="NAVIGATION_FREQUENCY">
         <call fun="nav_periodic_task()"/>
-      </control>
-      <control>
+      </control> -->
+      <control freq="PERIODIC_FREQUENCY">
         <call fun="guidance_module_run(autopilot_in_flight())"/>
         <call_block name="set_commands"/>
       </control>
-      <exception cond="RCLost()" deroute="FAILSAFE"/>
+      <exception cond="RCLost() && GpsIsLost()" deroute="FAILSAFE"/>
     </mode>
 
     <mode name="NAV">
