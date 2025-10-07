@@ -49,23 +49,26 @@
 #include "modules/core/abi.h"
 #include "../../../../simulator/nps/nps_sensors.h"
 
-// Access estimated thrust from stabilization_indi.c file. This is estimated thrust in the z direction
-extern float thrust_estimate;
-
-// Setting fixed values for mass. Not sure if this is accurate.
-#ifndef MOL_DRONE_WEIGHT
-#error "You have to define MOL_DRONE_WEIGHT for the ctrl_module_outerloop_demo!"
-#endif
-float mass = MOL_DRONE_WEIGHT;
 
 // Gains and limits
 static float vel_limit = 15.0;
 static float acc_limit = 3.5;
 static float thrust_limit = 0.1;
 static float vel_gain = 0.8;
-static float acc_gain = 0.8;
+static float acc_gain = 1.2;
 static float roll_rate_gain = 15.0;
 static float pitch_rate_gain = 15.0; 
+
+
+// Access estimated thrust from stabilization_indi.c file. This is estimated thrust in the z direction
+extern float thrust_estimate;
+
+
+// Setting fixed values for mass
+#ifndef MOL_DRONE_WEIGHT
+#error "You have to define MOL_DRONE_WEIGHT for the ctrl_module_outerloop_demo!"
+#endif
+float mass = MOL_DRONE_WEIGHT;
 
 
 // Globally defined parameters (able to access these with logging)
@@ -121,7 +124,9 @@ void guidance_module_run(bool in_flight)
 {
   stabilization_attitude_read_rc_setpoint_eulers(&ctrl.rc_sp, autopilot_in_flight(), false, false, &radio_control);
 
-  // DESIRED TRAJECTORY
+  ////////////////////////////////////////////////////
+  // Trajectory
+  // Counter for desired trajectory
   static int counter = 0;
   counter += 1;
 
@@ -143,9 +148,10 @@ void guidance_module_run(bool in_flight)
   pos_error[1] = pos_ref[1] - pos_a[1];
   pos_error[2] = pos_ref[2] - pos_a[2];
 
-  // Trying to compute velocity as a gain times the position error. This is done in the MatLAB file
+  // Compute velocity as a gain times the position error. This is done in the MatLAB file
   for (int i = 0; i < 3; i++) {
-      vel_ref[i] = pos_error[i] * vel_gain;   // Gain to get velocity  0.95
+      vel_ref[i] = pos_error[i] * vel_gain;   // Gain to get velocity  
+      // Include a velocity limit
       if (vel_ref[i] >= vel_limit) {
         vel_ref[i] = vel_limit;
       }
@@ -154,8 +160,8 @@ void guidance_module_run(bool in_flight)
       }
   } 
 
-  // Current speeds - plots give negative values, so I'm guessing that it is velocity and not speed
-  struct NedCoor_f *vel_actual = stateGetSpeedNed_f();
+  // Current velocities 
+  struct NedCoor_f *vel_actual = stateGetSpeedNed_f(); // Plots give negative values, so I'm guessing that it the get function is for velocity and not speed
   float vel_a[3];
   vel_a[0] = vel_actual->x;
   vel_a[1] = vel_actual->y;
@@ -168,9 +174,10 @@ void guidance_module_run(bool in_flight)
   vel_error[2] = vel_ref[2] - vel_a[2];
 
 
-  // Trying to compute acceleration as a gain times the velocity error. This is done in the MatLAB file
+  // Compute acceleration as a gain times the velocity error. This is done in the MatLAB file
   for (int i = 0; i < 3; i++) {
-      accel_ref[i] = vel_error[i] * acc_gain;   // Gain to get acceleration    2  
+      accel_ref[i] = vel_error[i] * acc_gain;   // Gain to get acceleration   
+      // Include an acceleration limit
       if (accel_ref[i] >= acc_limit) {
         accel_ref[i] = acc_limit;
       } 
@@ -187,13 +194,15 @@ void guidance_module_run(bool in_flight)
   accel_a[1] = accel_actual->y;
   accel_a[2] = accel_actual->z;
 
-  // d_accel_ref
+  // Difference in accelerations: d_accel_ref
   static float d_accel_ref[3];
   d_accel_ref[0] = accel_ref[0] - accel_a[0];
   d_accel_ref[1] = accel_ref[1] - accel_a[1];
   d_accel_ref[2] = accel_ref[2] - accel_a[2]; 
 
-  // CONTROL LAW
+
+  ////////////////////////////////////////////////
+  // Control law
   // Get results of guidance function
   float* rates_guidance = guidance_function(d_accel_ref);
   
@@ -216,9 +225,11 @@ void guidance_module_run(bool in_flight)
 float* guidance_function(float d_accel_ref[3])
 {
   // Get thrust
-  float T = mass*9.81; //Hard-coding as a constant needed for a hover to counteract gravity for now, probably have to change.
+  float T = mass*9.81; // Hard-coding as a constant needed for a hover to counteract gravity for now, probably have to change.
   // T = -thrust_estimate;  
   // T = -ACCEL_FLOAT_OF_BFP(stateGetAccelBody_i()->z)*mass;
+
+  // Include a thrust limit
   if (T < thrust_limit) {
     T = thrust_limit;
   }
@@ -226,9 +237,7 @@ float* guidance_function(float d_accel_ref[3])
   // Rotation matrix, replacing eul2rotm(eulerzyx,"ZYX"). This gets the desired acceleration in the body frame
   struct FloatRMat *rot = stateGetNedToBodyRMat_f(); 
 
-  // PPRZ ALGEBRA MATRICES
-  // Calculate d_accel_ref_b via "matrix" calculation: rot * d_accel_ref_b 
-
+  // Calculate d_accel_ref_b via "matrix" calculation: d_accel_ref_b = rot * d_accel_ref 
   struct FloatVect3 d_accel_ref_b;
   struct FloatVect3 d_accel_ref_v = {d_accel_ref[0], d_accel_ref[1], d_accel_ref[2]};
 
@@ -237,11 +246,11 @@ float* guidance_function(float d_accel_ref[3])
 
   // Calculate dcmd via "matrix" calculation: dcmd = B_inverse * d_accel_ref_b * mass;
   // Inverse of the control effectiveness matrix = {{0, 1/T, 0}, {1/T, 0, 0}, {0, 0, 1}};
-  // float dcmd[3]; //MYB PUT LIMIT (45DEG)
-
+  // dcmd[3] is defined globally
   dcmd[0] = 1/T * d_accel_ref_b.y * mass;
   dcmd[1] = 1/T * d_accel_ref_b.x * mass;
   dcmd[2] = 1 * d_accel_ref_b.z * mass;
+
 
   // Quaternion
   struct FloatEulers e;
