@@ -52,10 +52,13 @@
 
 // Gains and limits
 static float vel_limit = 15.0;
-static float acc_limit = 3.5;
-static float thrust_limit = 0.1;
-static float vel_gain = 0.8;
-static float acc_gain = 1.2;
+static float acc_limit = 6.0;
+static float thrust_limit = 0.2;
+static float vel_gain = 1.2;  
+static float acc_gain = 2.0;  
+static float pos_gain_ff = 10.0;
+static float vel_gain_ff = 2.0;
+static float acc_gain_ff = 2.0;
 static float roll_rate_gain = 15.0;
 static float pitch_rate_gain = 15.0; 
 
@@ -72,7 +75,12 @@ float mass = MOL_DRONE_WEIGHT;
 
 
 // Globally defined parameters (able to access these with logging)
+// fb - feedback, ff - feedforward
 float pos_ref[3];
+float vel_ref_fb[3];  
+float accel_ref_fb[3];
+float vel_ref_ff[3];
+float accel_ref_ff[3];
 float vel_ref[3];
 float accel_ref[3];
 float T;
@@ -124,17 +132,26 @@ void guidance_module_run(bool in_flight)
 {
   stabilization_attitude_read_rc_setpoint_eulers(&ctrl.rc_sp, autopilot_in_flight(), false, false, &radio_control);
 
-  ////////////////////////////////////////////////////
-  // Trajectory
+  //////////////// Determining input for guidance function (d_accel_ref) ////////////////
   // Counter for desired trajectory
   static int counter = 0;
   counter += 1;
 
   // Desired position
-  pos_ref[0] = 3 * sinf(counter/420.0);
-  pos_ref[1] = 0.0;
+  pos_ref[0] = 0.0;
+  pos_ref[1] = 3 * sinf(counter/420.0);
   pos_ref[2] = -4.0;
 
+  // Analytical derivatives of pos_ref for the feedforward input
+  vel_ref_ff[0] = 0.0;
+  vel_ref_ff[1] = cosf(counter/420.0);
+  vel_ref_ff[2] = 0.0;
+
+  accel_ref_ff[0] = 0.0;
+  accel_ref_ff[1] = - sinf(counter/420.0);
+  accel_ref_ff[2] = 0.0;
+
+  // Feedback input
   // Current positions
   struct NedCoor_f *pos_actual = stateGetPositionNed_f();
   float pos_a[3];
@@ -150,13 +167,13 @@ void guidance_module_run(bool in_flight)
 
   // Compute velocity as a gain times the position error. This is done in the MatLAB file
   for (int i = 0; i < 3; i++) {
-      vel_ref[i] = pos_error[i] * vel_gain;   // Gain to get velocity  
+      vel_ref_fb[i] = pos_error[i] * vel_gain;   // Gain to get velocity  
       // Include a velocity limit
-      if (vel_ref[i] >= vel_limit) {
-        vel_ref[i] = vel_limit;
+      if (vel_ref_fb[i] >= vel_limit) {
+        vel_ref_fb[i] = vel_limit;
       }
-      if (vel_ref[i] <= -vel_limit) {
-        vel_ref[i] = -vel_limit;
+      if (vel_ref_fb[i] <= -vel_limit) {
+        vel_ref_fb[i] = -vel_limit;
       }
   } 
 
@@ -173,22 +190,20 @@ void guidance_module_run(bool in_flight)
   vel_error[1] = vel_ref[1] - vel_a[1];
   vel_error[2] = vel_ref[2] - vel_a[2];
 
-
   // Compute acceleration as a gain times the velocity error. This is done in the MatLAB file
   for (int i = 0; i < 3; i++) {
-      accel_ref[i] = vel_error[i] * acc_gain;   // Gain to get acceleration   
+      accel_ref_fb[i] = vel_error[i] * acc_gain;   // Gain to get acceleration   
       // Include an acceleration limit
-      if (accel_ref[i] >= acc_limit) {
-        accel_ref[i] = acc_limit;
+      if (accel_ref_fb[i] >= acc_limit) {
+        accel_ref_fb[i] = acc_limit;
       } 
-      if (accel_ref[i] <= -acc_limit) {
-        accel_ref[i] = -acc_limit;
+      if (accel_ref_fb[i] <= -acc_limit) {
+        accel_ref_fb[i] = -acc_limit;
       }
   } 
 
   // Current accelerations
   struct NedCoor_f *accel_actual = stateGetAccelNed_f();
-
   float accel_a[3];
   accel_a[0] = accel_actual->x;
   accel_a[1] = accel_actual->y;
@@ -196,13 +211,19 @@ void guidance_module_run(bool in_flight)
 
   // Difference in accelerations: d_accel_ref
   static float d_accel_ref[3];
-  d_accel_ref[0] = accel_ref[0] - accel_a[0];
-  d_accel_ref[1] = accel_ref[1] - accel_a[1];
-  d_accel_ref[2] = accel_ref[2] - accel_a[2]; 
+  for (int i = 0; i < 3; i++) {
+    float accel_fb = accel_ref_fb[i] - accel_a[i];  // acceleration feedback
+    float accel_ff = pos_error[i] * pos_gain_ff + (vel_ref_ff[i] - vel_a[i]) * vel_gain_ff + accel_ref_ff[i] * acc_gain_ff;  // acceleration feedforward
+    d_accel_ref[i] = accel_fb + accel_ff;  // difference in acceleration as input for the guidance function
+
+    vel_ref[i] = vel_ref_fb[i] + vel_ref_ff[i];  // reference velocity for plotting
+    accel_ref[i] = accel_fb + accel_ff + accel_a[i];  // reference acceleration for plotting
+
+    RunOnceEvery(300,printf("%i, %f, %f, %f, %f\n", i, accel_fb, accel_ff, pos_error[i], d_accel_ref[i]));
+  }
 
 
-  ////////////////////////////////////////////////
-  // Control law
+  //////////////// Control law ////////////////
   // Get results of guidance function
   float* rates_guidance = guidance_function(d_accel_ref);
   
@@ -225,9 +246,9 @@ void guidance_module_run(bool in_flight)
 float* guidance_function(float d_accel_ref[3])
 {
   // Get thrust
-  float T = mass*9.81; // Hard-coding as a constant needed for a hover to counteract gravity for now, probably have to change.
+  // float T = mass*9.81; // Hard-coding as a constant needed for a hover to counteract gravity for now, probably have to change.
   // T = -thrust_estimate;  
-  // T = -ACCEL_FLOAT_OF_BFP(stateGetAccelBody_i()->z)*mass;
+  T = -ACCEL_FLOAT_OF_BFP(stateGetAccelBody_i()->z)*mass;
 
   // Include a thrust limit
   if (T < thrust_limit) {
