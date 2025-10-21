@@ -54,11 +54,8 @@
 static float vel_limit = 15.0;
 static float acc_limit = 6.0;
 static float thrust_limit = 0.2;
-static float vel_gain = 1.2;  
-static float acc_gain = 2.0;  
-static float pos_gain_ff = 10.0;
-static float vel_gain_ff = 2.0;
-static float acc_gain_ff = 2.0;
+static float K_p = 0.9;
+static float K_v = 2.5;
 static float roll_rate_gain = 15.0;
 static float pitch_rate_gain = 15.0; 
 
@@ -73,14 +70,12 @@ extern float thrust_estimate;
 #endif
 float mass = MOL_DRONE_WEIGHT;
 
+float freq = (float)PERIODIC_FREQUENCY;
+// float freq = 412.0;
+
 
 // Globally defined parameters (able to access these with logging)
-// fb - feedback, ff - feedforward
 float pos_ref[3];
-float vel_ref_fb[3];  
-float accel_ref_fb[3];
-float vel_ref_ff[3];
-float accel_ref_ff[3];
 float vel_ref[3];
 float accel_ref[3];
 float T;
@@ -95,7 +90,6 @@ struct ctrl_module_demo_struct {
   struct AttitudeRCInput rc_sp;
 
 // Output command
-  // struct Int32Eulers cmd;
   struct FloatRates cmd;
 
 } ctrl;
@@ -139,43 +133,25 @@ void guidance_module_run(bool in_flight)
 
   // Desired position
   pos_ref[0] = 0.0;
-  pos_ref[1] = 3 * sinf(counter/420.0);
+  pos_ref[1] = 3 * sinf(counter/freq);
   pos_ref[2] = -4.0;
 
   // Analytical derivatives of pos_ref for the feedforward input
-  vel_ref_ff[0] = 0.0;
-  vel_ref_ff[1] = cosf(counter/420.0);
-  vel_ref_ff[2] = 0.0;
+  // Not including frequency in the derivative, as time = counter / freq
+  vel_ref[0] = 0.0;
+  vel_ref[1] = 3 * cosf(counter/freq);
+  vel_ref[2] = 0.0;
 
-  accel_ref_ff[0] = 0.0;
-  accel_ref_ff[1] = - sinf(counter/420.0);
-  accel_ref_ff[2] = 0.0;
+  accel_ref[0] = 0.0;
+  accel_ref[1] = - 3 * sinf(counter/freq);
+  accel_ref[2] = 0.0;
 
-  // Feedback input
   // Current positions
   struct NedCoor_f *pos_actual = stateGetPositionNed_f();
   float pos_a[3];
   pos_a[0] = pos_actual->x;
   pos_a[1] = pos_actual->y;
   pos_a[2] = pos_actual->z;
-
-  // Difference in positions
-  float pos_error[3];
-  pos_error[0] = pos_ref[0] - pos_a[0];
-  pos_error[1] = pos_ref[1] - pos_a[1];
-  pos_error[2] = pos_ref[2] - pos_a[2];
-
-  // Compute velocity as a gain times the position error. This is done in the MatLAB file
-  for (int i = 0; i < 3; i++) {
-      vel_ref_fb[i] = pos_error[i] * vel_gain;   // Gain to get velocity  
-      // Include a velocity limit
-      if (vel_ref_fb[i] >= vel_limit) {
-        vel_ref_fb[i] = vel_limit;
-      }
-      if (vel_ref_fb[i] <= -vel_limit) {
-        vel_ref_fb[i] = -vel_limit;
-      }
-  } 
 
   // Current velocities 
   struct NedCoor_f *vel_actual = stateGetSpeedNed_f(); // Plots give negative values, so I'm guessing that it the get function is for velocity and not speed
@@ -184,24 +160,6 @@ void guidance_module_run(bool in_flight)
   vel_a[1] = vel_actual->y;
   vel_a[2] = vel_actual->z;
 
-  // Difference in speeds
-  float vel_error[3];
-  vel_error[0] = vel_ref[0] - vel_a[0];
-  vel_error[1] = vel_ref[1] - vel_a[1];
-  vel_error[2] = vel_ref[2] - vel_a[2];
-
-  // Compute acceleration as a gain times the velocity error. This is done in the MatLAB file
-  for (int i = 0; i < 3; i++) {
-      accel_ref_fb[i] = vel_error[i] * acc_gain;   // Gain to get acceleration   
-      // Include an acceleration limit
-      if (accel_ref_fb[i] >= acc_limit) {
-        accel_ref_fb[i] = acc_limit;
-      } 
-      if (accel_ref_fb[i] <= -acc_limit) {
-        accel_ref_fb[i] = -acc_limit;
-      }
-  } 
-
   // Current accelerations
   struct NedCoor_f *accel_actual = stateGetAccelNed_f();
   float accel_a[3];
@@ -209,17 +167,30 @@ void guidance_module_run(bool in_flight)
   accel_a[1] = accel_actual->y;
   accel_a[2] = accel_actual->z;
 
+  // Velocity and acceleration limits
+  for (int i = 0; i < 3; i++){
+    if (vel_ref[i] <= -vel_limit) { 
+      vel_ref[i] = -vel_limit;
+    }
+    if (vel_ref[i] >= vel_limit) { 
+      vel_ref[i] = vel_limit;
+    }
+    if (accel_ref[i] <= -acc_limit) { 
+      accel_ref[i] = -acc_limit;
+    }
+    if (accel_ref[i] >= acc_limit) { 
+      accel_ref[i] = acc_limit;
+    }
+  }
+
   // Difference in accelerations: d_accel_ref
   static float d_accel_ref[3];
   for (int i = 0; i < 3; i++) {
-    float accel_fb = accel_ref_fb[i] - accel_a[i];  // acceleration feedback
-    float accel_ff = pos_error[i] * pos_gain_ff + (vel_ref_ff[i] - vel_a[i]) * vel_gain_ff + accel_ref_ff[i] * acc_gain_ff;  // acceleration feedforward
-    d_accel_ref[i] = accel_fb + accel_ff;  // difference in acceleration as input for the guidance function
+    float pos_component = (pos_ref[i] - pos_a[i]) * K_p;
+    float vel_component = (vel_ref[i] - vel_a[i]) * K_v;
+    float acc_component = accel_ref[i];
 
-    vel_ref[i] = vel_ref_fb[i] + vel_ref_ff[i];  // reference velocity for plotting
-    accel_ref[i] = accel_fb + accel_ff + accel_a[i];  // reference acceleration for plotting
-
-    RunOnceEvery(300,printf("%i, %f, %f, %f, %f\n", i, accel_fb, accel_ff, pos_error[i], d_accel_ref[i]));
+    d_accel_ref[i] = (pos_component + vel_component + acc_component) - accel_a[i];  
   }
 
 
