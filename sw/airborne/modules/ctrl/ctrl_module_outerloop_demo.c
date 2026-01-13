@@ -53,9 +53,9 @@
 // Gains and limits
 static float vel_limit = 15.0;
 static float acc_limit = 6.0;
-static float thrust_limit = 0.2;
-static float K_p = 0.9;
-static float K_v = 2.5;
+static float thrust_limit = 1.4;
+static float K_p = 0.8;
+static float K_v = 2.4;
 static float roll_rate_gain = 15.0;
 static float pitch_rate_gain = 15.0; 
 
@@ -78,6 +78,7 @@ float freq = (float)PERIODIC_FREQUENCY;
 float pos_ref[3];
 float vel_ref[3];
 float accel_ref[3];
+float accel_ref_with_gains[3];
 float T;
 float roll_rate_calc;
 float pitch_rate_calc;
@@ -133,17 +134,23 @@ void guidance_module_run(bool in_flight)
 
   // Desired position
   pos_ref[0] = 0.0;
-  pos_ref[1] = 3 * sinf(counter/freq);
+  // pos_ref[0] = -5 * sinf(counter/freq);
+  pos_ref[1] = 7 * cosf(counter/freq);
+  // pos_ref[1] = -5.0;
   pos_ref[2] = -4.0;
 
   // Analytical derivatives of pos_ref for the feedforward input
   // Not including frequency in the derivative, as time = counter / freq
   vel_ref[0] = 0.0;
-  vel_ref[1] = 3 * cosf(counter/freq);
+  // vel_ref[0] = -5 * cosf(counter/freq);
+  vel_ref[1] = -7 * sinf(counter/freq);
+  // vel_ref[1] = 0.0;
   vel_ref[2] = 0.0;
 
   accel_ref[0] = 0.0;
-  accel_ref[1] = - 3 * sinf(counter/freq);
+  // accel_ref[0] = 5 * sinf(counter/freq);
+  accel_ref[1] = -7 * cosf(counter/freq);
+  // accel_ref[1] = 0.0;
   accel_ref[2] = 0.0;
 
   // Current positions
@@ -190,7 +197,17 @@ void guidance_module_run(bool in_flight)
     float vel_component = (vel_ref[i] - vel_a[i]) * K_v;
     float acc_component = accel_ref[i];
 
-    d_accel_ref[i] = (pos_component + vel_component + acc_component) - accel_a[i];  
+    accel_ref_with_gains[i] = pos_component + vel_component + acc_component;
+
+    // if (accel_ref_with_gains[i] > 10.0) {
+    //   accel_ref_with_gains[i] = 10.0;
+    // }
+
+    // if (accel_ref_with_gains[i] < -10.0) {
+    //   accel_ref_with_gains[i] = -10.0;
+    // } 
+
+    d_accel_ref[i] = accel_ref_with_gains[i] - accel_a[i];  
   }
 
 
@@ -217,7 +234,7 @@ void guidance_module_run(bool in_flight)
 float* guidance_function(float d_accel_ref[3])
 {
   // Get thrust
-  // float T = mass*9.81; // Hard-coding as a constant needed for a hover to counteract gravity for now, probably have to change.
+  // T = mass*9.81; // Hard-coding as a constant needed for a hover to counteract gravity for now, probably have to change.
   // T = -thrust_estimate;  
   T = -ACCEL_FLOAT_OF_BFP(stateGetAccelBody_i()->z)*mass;
 
@@ -242,6 +259,30 @@ float* guidance_function(float d_accel_ref[3])
   dcmd[0] = 1/T * d_accel_ref_b.y * mass;
   dcmd[1] = 1/T * d_accel_ref_b.x * mass;
   dcmd[2] = 1 * d_accel_ref_b.z * mass;
+
+  // if (dcmd[0] > 0.4) {
+  //   dcmd[0] = 0.4;
+  // }
+
+  // if (dcmd[0] < -0.4) {
+  //   dcmd[0] = -0.4;
+  // }
+  
+  // if (dcmd[1] > 0.4) {
+  //   dcmd[1] = 0.4;
+  // }
+  
+  // if (dcmd[1] < -0.4) {
+  //   dcmd[1] = -0.4;
+  // }
+
+  // if (dcmd[2] > 0.4) {
+  //   dcmd[2] = 0.4;
+  // }
+  
+  // if (dcmd[2] < -0.4) {
+  //   dcmd[2] = -0.4;
+  // }
 
 
   // Quaternion

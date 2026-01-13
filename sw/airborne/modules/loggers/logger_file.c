@@ -70,6 +70,7 @@ static void logger_file_write_header(FILE *file) {
   fprintf(file, "pos_x_ref,pos_y_ref,pos_z_ref,");
   fprintf(file, "vel_x_ref,vel_y_ref,vel_z_ref,");
   fprintf(file, "acc_x_ref,acc_y_ref,acc_z_ref,");
+  fprintf(file, "acc_x_ref_with_gains,acc_y_ref_with_gains,acc_z_ref_with_gains,");
   fprintf(file, "pos_x_actual,pos_y_actual,pos_z_actual,");
   fprintf(file, "vel_x_actual,vel_y_actual,vel_z_actual,");
   fprintf(file, "acc_x_actual,acc_y_actual,acc_z_actual,");
@@ -111,8 +112,9 @@ static void logger_file_write_row(FILE *file) {
   fprintf(file, "%f,%f,%f,", pos_ref[0], pos_ref[1], pos_ref[2]);
   fprintf(file, "%f,%f,%f,", vel_ref[0], vel_ref[1], vel_ref[2]);
   fprintf(file, "%f,%f,%f,", accel_ref[0], accel_ref[1], accel_ref[2]);
+  fprintf(file, "%f,%f,%f,", accel_ref_with_gains[0], accel_ref_with_gains[1], accel_ref_with_gains[2]);
   fprintf(file, "%f,%f,%f,", pos->x, pos->y, pos->z);
-  fprintf(file, "%f,%f,%f,", vel->x, vel->y, vel->z);
+  fprintf(file, "%f,%f,%f,", vel->x,vel->y, vel->z);
   fprintf(file, "%f,%f,%f,", acc->x, acc->y, acc->z);
   fprintf(file, "%f,%f,%f,", att->phi, att->theta, att->psi);
   fprintf(file, "%f,%f,%f,", rates->p, rates->q, rates->r);
